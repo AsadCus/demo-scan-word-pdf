@@ -11,13 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('fdw_medical_histories', function (Blueprint $table) {
+        Schema::create('fdw_medical_illnesses', function (Blueprint $table) {
             $table->id();
             $table->integer('fdw_id');
-            $table->string('allergies')->nullable();
-            $table->string('physical_disabilities')->nullable();
-            $table->string('dietary_restrictions')->nullable();
-            $table->string('food_preferences')->nullable();
+            $table->string('illness')->nullable();
             $table->timestamps();
         });
     }
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('fdw_medical_histories');
+        Schema::dropIfExists('fdw_medical_illnesses');
     }
 };
