@@ -41,8 +41,9 @@
             <table id="datatable" class="display responsive nowrap" style="width:100%">
                 <thead>
                     <tr>
+                        <th></th>
                         <th>No</th>
-                        <th>Content</th>
+                        <th>Name</th>
                         <th>Uploaded At</th>
                     </tr>
                 </thead>
@@ -63,26 +64,64 @@
     <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
     <script>
+        function format(d) {
+            let details = JSON.parse(d.details); // parse JSON sent from backend
+            let html = '<table class="table table-bordered">';
+            for (let key in details) {
+                html += `<tr>
+                        <th style="width:200px">${key}</th>
+                        <td>${details[key]}</td>
+                     </tr>`;
+            }
+            html += '</table>';
+            return html;
+        }
+
         $(function() {
-            $('#datatable').DataTable({
+            let table = $('#datatable').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: '{{ route('demo.list') }}',
                 columns: [{
-                        data: 'DT_RowIndex',
-                        name: 'DT_RowIndex',
+                        className: 'dt-control',
                         orderable: false,
-                        searchable: false
+                        data: null,
+                        defaultContent: ''
                     },
                     {
-                        data: 'content',
-                        name: 'content'
+                        data: 'DT_RowIndex',
+                        name: 'DT_RowIndex'
+                    },
+                    {
+                        data: 'name',
+                        name: 'name'
                     },
                     {
                         data: 'created_at',
                         name: 'created_at'
                     },
+                    {
+                        data: 'details',
+                        visible: false
+                    }
+                ],
+                order: [
+                    [1, 'asc']
                 ]
+            });
+
+            // Add event listener for opening and closing details
+            $('#datatable tbody').on('click', 'td.dt-control', function() {
+                let tr = $(this).closest('tr');
+                let row = table.row(tr);
+
+                if (row.child.isShown()) {
+                    row.child.hide();
+                    tr.removeClass('shown');
+                } else {
+                    row.child(format(row.data())).show();
+                    tr.addClass('shown');
+                }
             });
         });
     </script>
