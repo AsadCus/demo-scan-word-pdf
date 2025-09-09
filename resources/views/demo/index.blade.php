@@ -21,6 +21,9 @@
             <form action="{{ route('demo.upload') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <input type="file" name="file">
+                <label>
+                    <input type="checkbox" name="use_ocr" value="1"> Use OCR
+                </label>
                 <button type="submit">Upload</button>
             </form>
         </div>

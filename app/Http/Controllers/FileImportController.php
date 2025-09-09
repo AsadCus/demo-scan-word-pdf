@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use Imagick;
 use DOMXPath;
 use ZipArchive;
 use DOMDocument;
 use App\Models\Demo;
 use App\Models\FdwSkill;
+use Spatie\PdfToText\Pdf;
 use App\Models\FdwProfile;
 use Illuminate\Http\Request;
 use App\Models\FdwMedicalHistory;
 use App\Models\FdwMedicalIllness;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Smalot\PdfParser\Parser as PdfParser;
+use thiagoalessio\TesseractOCR\TesseractOCR;
 
 class FileImportController extends Controller
 {
@@ -38,13 +41,157 @@ class FileImportController extends Controller
             $text = $this->normalizeDocx($file->getPathname());
             $data[] = $text;
         } elseif ($extension === 'pdf') {
-            $parser = new PdfParser();
-            $pdf = $parser->parseFile($file->getPathname());
-            $text = $pdf->getText();
-            $data[] = $text;
+            $useOcr = $request->has('use_ocr');
+
+            if ($useOcr) {
+                $outputDir = storage_path('app/temp_ocr');
+                if (!is_dir($outputDir)) {
+                    mkdir($outputDir, 0777, true);
+                }
+
+                $pdfPath = $file->getPathname();
+                $imagePattern = $outputDir . '/page_%03d.png';
+
+                $gsPath = '"C:/Program Files/gs/gs10.05.1/bin/gswin64c.exe"';
+
+                // Convert all PDF pages into PNGs
+                $cmd = "$gsPath -sDEVICE=pngalpha -o \"$imagePattern\" -r300 \"$pdfPath\"";
+                exec($cmd, $out, $ret);
+
+                if ($ret !== 0) {
+                    throw new \Exception("Ghostscript failed: " . implode("\n", $out));
+                }
+
+                // Collect OCR text
+                $text = "";
+                $pageFiles = glob($outputDir . '/page_*.png');
+                sort($pageFiles);
+
+                $photoFilename = null;
+                // $photoFilenamePoppler = null;
+                // $photoFilenameImagick = null;
+
+                foreach ($pageFiles as $i => $pagePath) {
+                    $ocr = (new TesseractOCR($pagePath))->lang('eng')->run();
+                    $text .= "=== PAGE " . ($i + 1) . " ===\n" . $ocr . "\n\n";
+
+                    // Handle profile photo only on first page
+                    if ($i === 0) {
+                        // // testing //
+                        // $baseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                        // // $photoFilename = 'profile_' . $baseName . '.png';
+                        // // $photoPath = public_path($photoFilename);
+
+                        // // Option 1: Use pdfimages (preferred, raw embedded image)
+                        // $photoFilenamePoppler = 'profile_poppler_' . $baseName . '.png';
+                        // $photoPathPoppler = public_path($photoFilenamePoppler);
+
+                        // $pdfImagesCmd = "pdfimages -png \"$pdfPath\" \"$outputDir/pdfimage\"";
+                        // exec($pdfImagesCmd, $imgOut, $imgRet);
+
+                        // $extracted = glob($outputDir . '/pdfimage-*.png');
+                        // copy($extracted[0], $photoPathPoppler);
+
+                        // // Option 2: Imagick auto-crop fallback
+                        // $photoFilenameImagick = 'profile_imagick_' . $baseName . '.png';
+                        // $photoPathImagick = public_path($photoFilenameImagick);
+
+                        // $img = new \Imagick($pagePath);
+                        // $width = $img->getImageWidth();
+                        // $height = $img->getImageHeight();
+
+                        // $cropWidth = 640;
+                        // $cropHeight = 980;
+                        // $x = $width - $cropWidth - 152;
+                        // $y = 345;
+                        // $img->cropImage($cropWidth, $cropHeight, $x, $y);
+
+                        // $img->writeImage($photoPathImagick);
+
+                        $baseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                        $photoFilename = 'profile_' . $baseName . '.png';
+                        $photoPath = public_path($photoFilename);
+
+                        // poppler first
+                        $pdfImagesCmd = "pdfimages -png \"$pdfPath\" \"$outputDir/pdfimage\"";
+                        exec($pdfImagesCmd, $imgOut, $imgRet);
+
+                        $extracted = glob($outputDir . '/pdfimage-*.png');
+
+                        if ($imgRet === 0 && !empty($extracted)) {
+                            copy($extracted[0], $photoPath);
+                        } else {
+                            // fallback
+                            $img = new \Imagick($pagePath);
+                            $width = $img->getImageWidth();
+                            $height = $img->getImageHeight();
+
+                            $cropWidth = 640;
+                            $cropHeight = 980;
+                            $x = $width - $cropWidth - 152;
+                            $y = 345;
+                            $img->cropImage($cropWidth, $cropHeight, $x, $y);
+                            $img->writeImage($photoPath);
+                        }
+                    }
+                }
+
+                dd([
+                    'filename'      => $file->getClientOriginalName(),
+                    'photo_saved_as' => $photoFilename,
+                    'extracted_text' => $text,
+                ]);
+            } else {
+                // Use normal parser
+
+                $parser = new PdfParser();
+                $pdf = $parser->parseFile($file->getPathname());
+                $text = $pdf->getText();
+
+                $details = $pdf->getDetails();
+                $producer = $details['Producer'] ?? '';
+                $creator  = $details['Creator'] ?? '';
+
+                $isWpsPdf = stripos($producer, 'wps') !== false
+                    || stripos($creator, 'wps') !== false
+                    || preg_match('/[a-z]{2,}[A-Z]{2,}/', $text);
+
+                if ($isWpsPdf) {
+                    $text = str_replace(
+                        ["", "", ""],
+                        ["☐", "☒", "☑"],
+                        $text
+                    );
+
+                    $text = html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+                    $text = str_replace(["\xC2\xA0", "\xE2\x80\x8B", "\xEF\xBB\xBF"], ' ', $text);
+
+                    $text = preg_replace('/([:;,.])([A-Za-z0-9])/', '$1 $2', $text);
+
+                    $patterns = [
+                        '/([a-z])([A-Z])/'      => '$1 $2',
+                        '/([A-Z])([A-Z][a-z])/' => '$1 $2',
+                        '/([a-zA-Z])([0-9])/'   => '$1 $2',
+                        '/([0-9])([a-zA-Z])/'   => '$1 $2',
+                    ];
+                    foreach ($patterns as $p => $r) {
+                        $text = preg_replace($p, $r, $text);
+                    }
+
+                    $text = preg_replace('/\b(\d{1,2})\s*YO\b/i', '$1 YEARS OLD', $text);
+
+                    $text = preg_replace('/(\([A-E]\))/', "\n$1", $text); // sections
+                    $text = preg_replace('/(\d{1,2}\.)/', "\n$1", $text); // numbered Qs
+                    $text = preg_replace('/A-\d/', "\n$0", $text);
+
+                    $text = preg_replace('/\s+/', ' ', $text);
+                    $text = preg_replace('/\n\s+/', "\n", $text);
+                }
+            }
+
+            $data[] = trim($text);
         }
 
-        // Example: Store in DB
         foreach ($data as $row) {
             Demo::create([
                 'content' => is_array($row) ? json_encode($row) : $row,
