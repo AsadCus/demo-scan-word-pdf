@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use App\Models\FdwMedicalHistory;
 use App\Models\FdwMedicalIllness;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use Smalot\PdfParser\Parser as PdfParser;
 use thiagoalessio\TesseractOCR\TesseractOCR;
 
@@ -40,6 +41,40 @@ class FileImportController extends Controller
         } elseif ($extension === 'docx') {
             $text = $this->normalizeDocx($file->getPathname());
             $data[] = $text;
+
+            $photoFilename = null;
+
+            // 2. Extract first image as profile photo
+            $zip = new \ZipArchive;
+            if ($zip->open($file->getPathname()) === true) {
+                $outputDir = storage_path('app/temp_word');
+                if (!is_dir($outputDir)) mkdir($outputDir, 0777, true);
+
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $entry = $zip->getNameIndex($i);
+
+                    if (preg_match('/word\/media\/.*\.(jpe?g|png|bmp)$/i', $entry)) {
+                        $imgContent = $zip->getFromIndex($i);
+
+                        $photoFilename = 'profile_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.png';
+                        $photoPath = public_path($photoFilename);
+
+                        $img = new \Imagick();
+                        $img->readImageBlob($imgContent);
+                        $img->setImageFormat('png');
+                        $img->writeImage($photoPath);
+
+                        break;
+                    }
+                }
+                $zip->close();
+            }
+
+            dd([
+                'filename'       => $file->getClientOriginalName(),
+                'photo_saved_as' => $photoFilename,
+                'extracted_text' => $text,
+            ]);
         } elseif ($extension === 'pdf') {
             $useOcr = $request->has('use_ocr');
 
