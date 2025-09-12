@@ -29,11 +29,13 @@
         </div>
 
         @if (session('success'))
-            {{-- @dd(session('success')) --}}
             <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
                 <ul class="mb-0">
-                    @foreach ((array) session('success') as $item)
-                        <li>{{ $item }}</li>
+                    @foreach (session('success') as $section => $content)
+                        <li>
+                            <strong>{{ ucfirst($section) }}:</strong>
+                            <pre class="mb-0" style="white-space: pre-wrap;">{{ $content }}</pre>
+                        </li>
                     @endforeach
                 </ul>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
