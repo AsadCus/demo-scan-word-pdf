@@ -69,8 +69,6 @@
     <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
     <script>
-        const assetBaseUrl = "{{ asset('') }}";
-
         function format(d) {
             let details = JSON.parse(d.details);
             let html = '<table class="table table-bordered">';
@@ -80,7 +78,7 @@
 
                 if (key === 'Photo Profile') {
                     html +=
-                        `<td><img src="${assetBaseUrl}${details[key]}" alt="FDW Photo" style="max-width:200px; height:auto; border:1px solid #ddd; border-radius:4px;"/></td>`;
+                        `<td><img src="${details[key]}" alt="FDW Photo" style="max-width:200px; height:auto; border:1px solid #ddd; border-radius:4px;"/></td>`;
                 } else {
                     html += `<td>${details[key]}</td>`;
                 }

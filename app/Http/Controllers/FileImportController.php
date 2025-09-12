@@ -13,10 +13,11 @@ use App\Models\FdwProfile;
 use Illuminate\Http\Request;
 use App\Models\FdwMedicalHistory;
 use App\Models\FdwMedicalIllness;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use Smalot\PdfParser\Parser as PdfParser;
 use thiagoalessio\TesseractOCR\TesseractOCR;
+use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 
 class FileImportController extends Controller
 {
@@ -53,13 +54,20 @@ class FileImportController extends Controller
                     if (preg_match('/word\/media\/.*\.(jpe?g|png|bmp)$/i', $entry)) {
                         $imgContent = $zip->getFromIndex($i);
 
+                        // Generate filename
                         $photoFilename = 'fdw_photo_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.png';
-                        $photoPath = public_path($photoFilename);
 
+                        // Convert with Imagick
                         $img = new \Imagick();
                         $img->readImageBlob($imgContent);
                         $img->setImageFormat('png');
-                        $img->writeImage($photoPath);
+
+                        // Save inside storage/app/public/fdw_photos/
+                        $relativePath = 'fdw_photos/' . $photoFilename;
+                        Storage::disk('public')->put($relativePath, $img->getImageBlob());
+
+                        // Save URL into your data
+                        $photoUrl = Storage::url($relativePath);
 
                         break;
                     }
@@ -257,7 +265,7 @@ class FileImportController extends Controller
 
         $profile = [
             'name'            => $nameMatch[1] ?? null,
-            'photo_profile'   => $photoFilename ?? null,
+            'photo_profile'   => $photoUrl ?? null,
             'dob'             => $dobMatch[1] ?? null,
             'age'             => $ageMatch[1] ?? null,
             'birth_place'     => $pobMatch[1] ?? null,
