@@ -54,20 +54,24 @@ class FileImportController extends Controller
                     if (preg_match('/word\/media\/.*\.(jpe?g|png|bmp)$/i', $entry)) {
                         $imgContent = $zip->getFromIndex($i);
 
-                        // Generate filename
-                        $photoFilename = 'fdw_photo_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.png';
+                        // Make sure the directory exists
+                        $photoDir = public_path('fdw_photos');
+                        if (! file_exists($photoDir)) {
+                            mkdir($photoDir, 0755, true);
+                        }
 
-                        // Convert with Imagick
+                        // Build filename
+                        $photoFilename = 'fdw_photo_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.png';
+                        $photoPath = $photoDir . '/' . $photoFilename;
+
+                        // Save with Imagick
                         $img = new \Imagick();
                         $img->readImageBlob($imgContent);
                         $img->setImageFormat('png');
+                        $img->writeImage($photoPath);
 
-                        // Save inside storage/app/public/fdw_photos/
-                        $relativePath = 'fdw_photos/' . $photoFilename;
-                        Storage::disk('public')->put($relativePath, $img->getImageBlob());
-
-                        // Save URL into your data
-                        $photoUrl = Storage::url($relativePath);
+                        // If you need to store URL in DB/session
+                        $photoUrl = asset('fdw_photos/' . $photoFilename);
 
                         break;
                     }
