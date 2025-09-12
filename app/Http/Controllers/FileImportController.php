@@ -71,7 +71,7 @@ class FileImportController extends Controller
                         $img->writeImage($photoPath);
 
                         // If you need to store URL in DB/session
-                        $photoUrl = asset('fdw_photos/' . $photoFilename);
+                        $photoUrl = asset('public/fdw_photos/' . $photoFilename);
 
                         break;
                     }
