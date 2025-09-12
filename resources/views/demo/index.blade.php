@@ -69,18 +69,28 @@
     <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
     <script>
+        const assetBaseUrl = "{{ asset('') }}";
+
         function format(d) {
-            let details = JSON.parse(d.details); // parse JSON sent from backend
+            let details = JSON.parse(d.details);
             let html = '<table class="table table-bordered">';
             for (let key in details) {
                 html += `<tr>
-                        <th style="width:200px">${key}</th>
-                        <td>${details[key]}</td>
-                     </tr>`;
+                    <th style="width:200px">${key}</th>`;
+
+                if (key === 'Photo Profile') {
+                    html +=
+                        `<td><img src="${assetBaseUrl}${details[key]}" alt="FDW Photo" style="max-width:200px; height:auto; border:1px solid #ddd; border-radius:4px;"/></td>`;
+                } else {
+                    html += `<td>${details[key]}</td>`;
+                }
+
+                html += '</tr>';
             }
             html += '</table>';
             return html;
         }
+
 
         $(function() {
             let table = $('#datatable').DataTable({

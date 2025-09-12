@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('fdw_profiles', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
+            $table->string('photo_profile')->nullable();
             $table->string('dob')->nullable();
             $table->string('age')->nullable();
             $table->string('birth_place')->nullable();

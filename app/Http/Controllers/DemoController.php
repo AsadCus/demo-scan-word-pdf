@@ -41,6 +41,7 @@ class DemoController extends Controller
 
                     return collect([
                         'Name'            => $row->name,
+                        'Photo Profile'   => $row->photo_profile,
                         'Date of Birth'   => $row->dob,
                         'Age'             => $row->age,
                         'Birth Place'     => $row->birth_place,

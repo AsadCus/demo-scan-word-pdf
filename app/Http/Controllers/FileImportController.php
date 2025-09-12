@@ -53,7 +53,7 @@ class FileImportController extends Controller
                     if (preg_match('/word\/media\/.*\.(jpe?g|png|bmp)$/i', $entry)) {
                         $imgContent = $zip->getFromIndex($i);
 
-                        $photoFilename = 'profile_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.png';
+                        $photoFilename = 'fdw_photo_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.png';
                         $photoPath = public_path($photoFilename);
 
                         $img = new \Imagick();
@@ -257,6 +257,7 @@ class FileImportController extends Controller
 
         $profile = [
             'name'            => $nameMatch[1] ?? null,
+            'photo_profile'   => $photoFilename ?? null,
             'dob'             => $dobMatch[1] ?? null,
             'age'             => $ageMatch[1] ?? null,
             'birth_place'     => $pobMatch[1] ?? null,
